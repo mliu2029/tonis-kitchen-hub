@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, Calendar, MessageSquare } from "lucide-react";
+import { Heart, Calendar, MessageSquare, LogIn } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -10,7 +10,13 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-primary text-center">Toni's Kitchen</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-primary">Toni's Kitchen</h1>
+            <Button onClick={() => navigate("/auth")} variant="outline">
+              <LogIn className="mr-2 h-4 w-4" />
+              Staff Login
+            </Button>
+          </div>
         </div>
       </header>
 

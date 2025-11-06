@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Plus, Search, Trash2, PackagePlus } from "lucide-react";
+import { ArrowLeft, Plus, Search, Trash2, PackagePlus, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,8 +24,16 @@ const Inventory = () => {
   });
   const [open, setOpen] = useState(false);
   const [addQuantityDialogOpen, setAddQuantityDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [quantityToAdd, setQuantityToAdd] = useState(0);
+  const [editedItem, setEditedItem] = useState({
+    name: "",
+    category: "",
+    quantity: 0,
+    expiry_date: "",
+    notes: "",
+  });
 
   useEffect(() => {
     fetchItems();
@@ -94,6 +102,26 @@ const Inventory = () => {
       toast({ title: "Success", description: `Added ${quantityToAdd} to ${selectedItem.name}` });
       setAddQuantityDialogOpen(false);
       setQuantityToAdd(0);
+      setSelectedItem(null);
+      fetchItems();
+    }
+  };
+
+  const handleEditItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedItem) return;
+
+    const { error } = await supabase
+      .from("inventory_items")
+      .update(editedItem)
+      .eq("id", selectedItem.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update item", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Item updated successfully!" });
+      setEditDialogOpen(false);
       setSelectedItem(null);
       fetchItems();
     }
@@ -227,11 +255,28 @@ const Inventory = () => {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2 mt-4">
+                <div className="grid grid-cols-3 gap-2 mt-4">
                   <Button 
                     variant="outline" 
-                    size="sm" 
-                    className="flex-1"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedItem(item);
+                      setEditedItem({
+                        name: item.name,
+                        category: item.category,
+                        quantity: item.quantity,
+                        expiry_date: item.expiry_date || "",
+                        notes: item.notes || "",
+                      });
+                      setEditDialogOpen(true);
+                    }}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
                     onClick={() => {
                       setSelectedItem(item);
                       setAddQuantityDialogOpen(true);
@@ -242,7 +287,7 @@ const Inventory = () => {
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" className="flex-1">
+                      <Button variant="destructive" size="sm">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Remove
                       </Button>
@@ -302,6 +347,70 @@ const Inventory = () => {
               <Label>New Total: {selectedItem?.quantity + quantityToAdd}</Label>
             </div>
             <Button type="submit" className="w-full">Add Stock</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Item</DialogTitle>
+            <DialogDescription>Update item details</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditItem} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Item Name</Label>
+              <Input
+                id="edit-name"
+                value={editedItem.name}
+                onChange={(e) => setEditedItem({ ...editedItem, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-category">Category</Label>
+              <Select value={editedItem.category} onValueChange={(value) => setEditedItem({ ...editedItem, category: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="canned">Canned Goods</SelectItem>
+                  <SelectItem value="fresh">Fresh Produce</SelectItem>
+                  <SelectItem value="frozen">Frozen Foods</SelectItem>
+                  <SelectItem value="dry">Dry Goods</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-quantity">Quantity</Label>
+              <Input
+                id="edit-quantity"
+                type="number"
+                min="0"
+                value={editedItem.quantity}
+                onChange={(e) => setEditedItem({ ...editedItem, quantity: parseInt(e.target.value) || 0 })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-expiry">Expiry Date</Label>
+              <Input
+                id="edit-expiry"
+                type="date"
+                value={editedItem.expiry_date}
+                onChange={(e) => setEditedItem({ ...editedItem, expiry_date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <Input
+                id="edit-notes"
+                value={editedItem.notes}
+                onChange={(e) => setEditedItem({ ...editedItem, notes: e.target.value })}
+              />
+            </div>
+            <Button type="submit" className="w-full">Update Item</Button>
           </form>
         </DialogContent>
       </Dialog>
