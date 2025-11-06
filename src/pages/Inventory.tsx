@@ -4,11 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Search, Trash2, PackagePlus } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const Inventory = () => {
@@ -23,6 +23,9 @@ const Inventory = () => {
     notes: "",
   });
   const [open, setOpen] = useState(false);
+  const [addQuantityDialogOpen, setAddQuantityDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [quantityToAdd, setQuantityToAdd] = useState(0);
 
   useEffect(() => {
     fetchItems();
@@ -35,7 +38,7 @@ const Inventory = () => {
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast.error("Failed to load inventory");
+      toast({ title: "Error", description: "Failed to load inventory", variant: "destructive" });
     } else {
       setItems(data || []);
     }
@@ -47,9 +50,9 @@ const Inventory = () => {
     const { error } = await supabase.from("inventory_items").insert([newItem]);
 
     if (error) {
-      toast.error("Failed to add item");
+      toast({ title: "Error", description: "Failed to add item", variant: "destructive" });
     } else {
-      toast.success("Item added successfully!");
+      toast({ title: "Success", description: "Item added successfully!" });
       setNewItem({ name: "", category: "", quantity: 0, expiry_date: "", notes: "" });
       setOpen(false);
       fetchItems();
@@ -63,9 +66,35 @@ const Inventory = () => {
       .eq("id", itemId);
 
     if (error) {
-      toast.error("Failed to delete item");
+      toast({ title: "Error", description: "Failed to delete item", variant: "destructive" });
     } else {
-      toast.success("Item deleted successfully!");
+      toast({ title: "Success", description: "Item deleted successfully!" });
+      fetchItems();
+    }
+  };
+
+  const handleAddQuantity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedItem || quantityToAdd <= 0) {
+      toast({ title: "Error", description: "Please enter a valid quantity", variant: "destructive" });
+      return;
+    }
+
+    const newQuantity = selectedItem.quantity + quantityToAdd;
+    
+    const { error } = await supabase
+      .from("inventory_items")
+      .update({ quantity: newQuantity })
+      .eq("id", selectedItem.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update quantity", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `Added ${quantityToAdd} to ${selectedItem.name}` });
+      setAddQuantityDialogOpen(false);
+      setQuantityToAdd(0);
+      setSelectedItem(null);
       fetchItems();
     }
   };
@@ -198,28 +227,42 @@ const Inventory = () => {
                     </p>
                   )}
                 </div>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="w-full mt-4">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove Item
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Item?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete "{item.name}"? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDeleteItem(item.id)}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex gap-2 mt-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      setSelectedItem(item);
+                      setAddQuantityDialogOpen(true);
+                    }}
+                  >
+                    <PackagePlus className="mr-2 h-4 w-4" />
+                    Add Stock
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm" className="flex-1">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Item?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteItem(item.id)}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -231,6 +274,37 @@ const Inventory = () => {
           </div>
         )}
       </main>
+
+      <Dialog open={addQuantityDialogOpen} onOpenChange={setAddQuantityDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Stock</DialogTitle>
+            <DialogDescription>
+              Add more quantity to {selectedItem?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddQuantity} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Current Quantity: {selectedItem?.quantity}</Label>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-quantity">Quantity to Add</Label>
+              <Input
+                id="add-quantity"
+                type="number"
+                min="1"
+                value={quantityToAdd}
+                onChange={(e) => setQuantityToAdd(parseInt(e.target.value) || 0)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>New Total: {selectedItem?.quantity + quantityToAdd}</Label>
+            </div>
+            <Button type="submit" className="w-full">Add Stock</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
