@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Plus, Search } from "lucide-react";
+import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const Inventory = () => {
   const navigate = useNavigate();
@@ -51,6 +52,20 @@ const Inventory = () => {
       toast.success("Item added successfully!");
       setNewItem({ name: "", category: "", quantity: 0, expiry_date: "", notes: "" });
       setOpen(false);
+      fetchItems();
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    const { error } = await supabase
+      .from("inventory_items")
+      .delete()
+      .eq("id", itemId);
+
+    if (error) {
+      toast.error("Failed to delete item");
+    } else {
+      toast.success("Item deleted successfully!");
       fetchItems();
     }
   };
@@ -183,6 +198,28 @@ const Inventory = () => {
                     </p>
                   )}
                 </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="w-full mt-4">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Remove Item
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Item?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteItem(item.id)}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           ))}
